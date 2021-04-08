@@ -1,0 +1,10 @@
+---
+title: "main"
+author: "Noah Love, Frederick Cordova, Giovanni Sanchez, Matthew Chen"
+date: "4/8/2021"
+output: html_document
+---
+
+# Linear Regression Final Project
+
+
