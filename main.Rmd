@@ -8,3 +8,14 @@ output: html_document
 # Linear Regression Final Project
 
 
+```{r message=FALSE, warning=FALSE, include=FALSE}
+library(tidyverse)
+```
+
+```{r message=FALSE, warning=FALSE}
+df <- as_tibble(read.table("winequality-red.csv", sep=";", header = TRUE))
+df_white <- as_tibble(read.table("winequality-white.csv", sep=";", header = TRUE))
+
+```
+
+
