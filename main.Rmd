@@ -8,6 +8,9 @@ output: html_document
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 library(tidyverse)
+library(glmnet)
+library(caret)
+library(elasticnet)
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -16,4 +19,49 @@ df_white <- as_tibble(read.table("winequality-white.csv", sep=";", header = TRUE
 
 ```
 
+## Rudimentary LM on whole dataset
+
+```{r}
+lm_basic <- lm(data = df, quality ~ .)
+
+summary(lm_basic)
+```
+Volatile acidity, chlorides, total sulfur dioxide, sulphates and alcohol are all very statistically significant, although our adjusted $R^2$ is still quite low. 
+
+
+## Ridge regression
+
+```{r}
+train_control <- trainControl(method  = "cv", number = 5)
+
+model_ridge <- train(quality ~ .,
+                     data = df,
+                     method = "ridge",           # method
+                     trControl = train_control)        # cross validation
+
+model_ridge
+
+#something doesn't seem to be working here
+
+
+```
+
+```{r}
+model_stepwise <- train(quality ~ .,
+                        data = df,
+                        method = "glmStepAIC",
+                        trControl = train_control)
+#model_stepwise
+```
+
+
+## Explore anything highly correlated:
+
+```{r}
+correlation_df <- cor(df)
+
+correlation_df
+
+# fixed acidity to ph and sulphates
+```
 
