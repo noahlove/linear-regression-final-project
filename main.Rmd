@@ -1,11 +1,9 @@
 ---
-title: "main"
+title: "Linear Regression Final Project"
 author: "Noah Love, Frederick Cordova, Giovanni Sanchez, Matthew Chen"
 date: "4/8/2021"
 output: html_document
 ---
-
-# Linear Regression Final Project
 
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
