@@ -11,6 +11,9 @@ library(tidyverse)
 library(glmnet)
 library(caret)
 library(elasticnet)
+library(reshape2)
+library(plotly)
+library(ggcorrplot)
 ```
 
 ```{r message=FALSE, warning=FALSE}
@@ -60,8 +63,64 @@ model_stepwise <- train(quality ~ .,
 ```{r}
 correlation_df <- cor(df)
 
-correlation_df
+#correlation_df
 
 # fixed acidity to ph and sulphates
+```
+
+```{r}
+correlation_df_melt <- melt(correlation_df)
+
+gz <- ggplot(correlation_df_melt, mapping = aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  theme(text = element_text(size = 8)) + 
+  ggtitle("Heat map for correlation") + 
+  ylab("")+
+  xlab("")+
+  scale_fill_distiller(palette = "RdPu")
+
+ggplotly(gz, tooltip = "text")
+
+```
+
+```{r}
+minimized_lm_df <- df %>% 
+  select(-free.sulfur.dioxide, -citric.acid, -density, -volatile.acidity, -pH)
+
+minimized_lm <- lm(data = minimized_lm_df, quality ~ .)
+
+summary(minimized_lm)
+
+```
+
+
+## Lasso
+```{r}
+findCorrelation(
+  cor(df),
+  cutoff = 0.5,
+  verbose = TRUE,
+  names = TRUE
+)
+```
+
+```{r}
+ggcorrplot(correlation_df, hc.order = TRUE, type = "lower")
+```
+
+
+```{r}
+df_less_acid <- df %>% 
+  select(-citric.acid, -fixed.acidity)
+
+lm_less_acid <- lm(data = df_less_acid, quality ~ .)
+summary(lm_less_acid)
+```
+## Lasso
+
+```{r}
+
+
 ```
 
