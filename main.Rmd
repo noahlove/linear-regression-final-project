@@ -283,3 +283,17 @@ eval_results(y_test, predictions_test, test)
 ```
 
 
+```{r}
+colnames(df)
+
+ggplot(data = df, mapping = aes(x = total.sulfur.dioxide, y = quality)) + 
+  geom_point()
+```
+
+```{r}
+
+ggplot(data = df, mapping = aes(x = residual.sugar, y = quality)) + 
+  geom_point()
+```
+
+There is really no relationship. This is probably an exercise in clusterting or machine learning, but linear regression is insufficient. 
