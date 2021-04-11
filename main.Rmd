@@ -297,3 +297,10 @@ ggplot(data = df, mapping = aes(x = residual.sugar, y = quality)) +
 ```
 
 There is really no relationship. This is probably an exercise in clusterting or machine learning, but linear regression is insufficient. 
+
+```{r}
+ggplot(data = df, mapping = aes(x = alcohol, y = quality)) + 
+  geom_point() +
+  geom_smooth()
+```
+
