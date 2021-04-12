@@ -11,13 +11,119 @@ library(tidyverse)
 library(glmnet)
 library(caret)
 library(elasticnet)
+library(reshape2)
+library(plotly)
+library(ggcorrplot)
 ```
+
+## Loading the data
+The source of the data is here: https://archive.ics.uci.edu/ml/datasets/Wine+Quality  
+Original citation:
+P. Cortez, A. Cerdeira, F. Almeida, T. Matos and J. Reis.
+Modeling wine preferences by data mining from physicochemical properties. In Decision Support Systems, Elsevier, 47(4):547-553, 2009.
+
+This data consists of two datasets. Each dataset contains quality ratings for wines as well as 11 features of these wines. The 12 variables are all continuous and numeric. The first dataset contains 1599 observations of red wines; the second dataset contains 4898 observations of white wines.
 
 ```{r message=FALSE, warning=FALSE}
 df <- as_tibble(read.table("winequality-red.csv", sep=";", header = TRUE))
-df_white <- as_tibble(read.table("winequality-white.csv", sep=";", header = TRUE))
+summary(df$quality)
 
+df_white <- as_tibble(read.table("winequality-white.csv", sep=";", header = TRUE))
+summary(df_white$quality)
 ```
+
+## Cleaning the data
+The variables in the data all have different scales. For example:
+```{r message=FALSE, warning=FALSE}
+summary(df$fixed.acidity)
+summary(df_white$sulphates)
+```
+
+The data will be standardized to make some plots of the data easier to visualize.
+```{r message=FALSE, warning=FALSE}
+data_red <- as.data.frame(scale(df))
+summary(data_red$fixed.acidity)
+
+data_white <- as.data.frame(scale(df_white))
+summary(data_white$sulphates)
+```
+
+## Visualizing the data
+Glancing at the raw data, we see that the red wine quality ratings are not distributed uniformly, and there are a few outlier ratings. Our model will probably not perform well when predicting red wine ratings below 4 or above 7.
+
+```{r message=FALSE, warning=FALSE}
+hist(df$quality,
+    main="Histogram of Red Wine Quality Ratings", 
+    xlab="Rating", 
+    las=1, 
+    breaks=4)
+```
+
+The white wine ratings are distributed similarly, although a bit more symmetrically. Our model will probably not perform well when predicting white wine ratings below 4 or above 8.
+```{r message=FALSE, warning=FALSE}
+hist(df_white$quality,
+     main="Histogram of White Wine Quality Ratings", 
+     xlab="Rating", 
+     las=1, 
+     breaks=5)
+```
+
+We may consider winsorizing or truncating our dataset to only consider observations where the rating was above 4 and below 7 (or 8, for white wine).
+
+## Further visualization
+Looking at the standardized data, there are a few variables that immediately appear to be predictive of the quality. Alcohol is one:
+```{r message=FALSE, warning=FALSE}
+ggplot(data_red, aes(x=alcohol, y=quality)) + 
+  geom_point() +
+  geom_smooth(method=lm) +
+  labs(title="Alcohol Content vs. Quality Rating",
+       subtitle="Red Wine",
+       y="Quality",
+       x="Alcohol")
+```
+
+Volatile acidity is another one:
+```{r message=FALSE, warning=FALSE}
+ggplot(data_red, aes(x=volatile.acidity, y=quality)) + 
+  geom_point() +
+  geom_smooth(method=lm) +
+  labs(title="Volatile Acidity vs. Quality Rating",
+       subtitle="Red Wine",
+       y="Quality",
+       x="Acidity")
+```
+
+These variables will likely be useful for predicting quality ratings of white wine as well:
+```{r message=FALSE, warning=FALSE}
+ggplot(data_white, aes(x=alcohol, y=quality)) + 
+  geom_point() +
+  geom_smooth(method=lm) +
+  labs(title="Alcohol Content vs. Quality Rating",
+       subtitle="White Wine",
+       y="Quality",
+       x="Alcohol")
+
+ggplot(data_white, aes(x=volatile.acidity, y=quality)) + 
+  geom_point() +
+  geom_smooth(method=lm) +
+  labs(title="Volatile Acidity vs. Quality Rating",
+       subtitle="White Wine",
+       y="Quality",
+       x="Acidity")
+```
+
+## Modeling
+The data will be split into train and test datasets. The model will be trained on the train data and evaluated on the test data.
+```{r message=FALSE, warning=FALSE}
+index = sample(1:nrow(df), 0.7*nrow(df)) 
+
+train = df[index,] # Create the training data 
+test = df[-index,] # Create the test data
+
+dim(train)
+dim(test)
+```
+
 
 ## Rudimentary LM on whole dataset
 
@@ -60,8 +166,235 @@ model_stepwise <- train(quality ~ .,
 ```{r}
 correlation_df <- cor(df)
 
-correlation_df
+#correlation_df
 
 # fixed acidity to ph and sulphates
+```
+
+```{r}
+correlation_df_melt <- melt(correlation_df)
+
+gz <- ggplot(correlation_df_melt, mapping = aes(x = Var1, y = Var2, fill = value)) + 
+  geom_tile() + 
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  theme(text = element_text(size = 8)) + 
+  ggtitle("Heat map for correlation") + 
+  ylab("")+
+  xlab("")+
+  scale_fill_distiller(palette = "RdPu")
+
+ggplotly(gz, tooltip = "text")
+
+```
+
+```{r}
+minimized_lm_df <- df %>% 
+  select(-free.sulfur.dioxide, -citric.acid, -density, -volatile.acidity, -pH)
+
+minimized_lm <- lm(data = minimized_lm_df, quality ~ .)
+
+summary(minimized_lm)
+
+```
+
+
+## correlations
+```{r}
+findCorrelation(
+  cor(df),
+  cutoff = 0.5,
+  verbose = TRUE,
+  names = TRUE
+)
+```
+
+```{r}
+ggcorrplot(correlation_df, hc.order = TRUE, type = "lower")
+```
+
+
+```{r}
+df_less_acid <- df %>% 
+  select(-citric.acid, -fixed.acidity)
+
+lm_less_acid <- lm(data = df_less_acid, quality ~ .)
+summary(lm_less_acid)
+```
+## Lasso
+
+```{r}
+plot(df)
+
+```
+
+## Full scaled analysis
+
+
+```{r}
+colnames(df)
+
+cols = c('fixed.acidity', 'volatile.acidity', 'citric.acid', 'residual.sugar', 'chlorides', 'free.sulfur.dioxide', 'total.sulfur.dioxide', 'density', 'pH', 'sulphates', 'alcohol')
+
+pre_proc_val <- preProcess(train[,cols], method = c("center", "scale"))
+
+train[,cols] = predict(pre_proc_val, train[,cols])
+test[,cols] = predict(pre_proc_val, test[,cols])
+
+summary(train)
+
+```
+#generic LM
+```{r}
+lm_2 <- lm(quality ~ ., data = train)
+summary(lm_2)
+```
+# Regularization
+
+```{r}
+cols_reg = c('fixed.acidity', 'volatile.acidity', 'citric.acid', 'residual.sugar', 'chlorides', 'free.sulfur.dioxide', 'total.sulfur.dioxide', 'density', 'pH', 'sulphates', 'alcohol', 'quality')
+
+dummies <- dummyVars(quality ~ ., data = df[,cols_reg])
+
+train_dummies = predict(dummies, newdata = train[,cols_reg])
+
+test_dummies = predict(dummies, newdata = test[,cols_reg])
+
+print(dim(train_dummies)); print(dim(test_dummies))
+```
+
+## Ridge Regression 
+
+```{r}
+x = as.matrix(train_dummies)
+y_train = train$quality
+
+x_test = as.matrix(test_dummies)
+y_test = test$quality
+
+lambdas <- 10^seq(2, -3, by = -.1)
+ridge_reg = glmnet(x, y_train, nlambda = 25, alpha = 0, family = 'gaussian', lambda = lambdas)
+
+summary(ridge_reg)
+```
+
+### Optimal Lambda
+```{r}
+cv_ridge <- cv.glmnet(x, y_train, alpha = 0, lambda = lambdas)
+optimal_lambda <- cv_ridge$lambda.min
+optimal_lambda
+```
+
+
+### Formal metrics for Ridge
+
+```{r}
+# Compute R^2 from true and predicted values
+eval_results <- function(true, predicted, df) {
+  SSE <- sum((predicted - true)^2)
+  SST <- sum((true - mean(true))^2)
+  R_square <- 1 - SSE / SST
+  RMSE = sqrt(SSE/nrow(df))
+
+  
+  # Model performance metrics
+data.frame(
+  RMSE = RMSE,
+  Rsquare = R_square
+)
+  
+}
+
+# Prediction and evaluation on train data
+predictions_train <- predict(ridge_reg, s = optimal_lambda, newx = x)
+eval_results(y_train, predictions_train, train)
+
+# Prediction and evaluation on test data
+predictions_test <- predict(ridge_reg, s = optimal_lambda, newx = x_test)
+eval_results(y_test, predictions_test, test)
+
+```
+
+
+## Lasso
+```{r}
+lambdas <- 10^seq(2, -3, by = -.1)
+
+# Setting alpha = 1 implements lasso regression
+lasso_reg <- cv.glmnet(x, y_train, alpha = 1, lambda = lambdas, standardize = TRUE, nfolds = 5)
+
+# Best 
+lambda_best <- lasso_reg$lambda.min 
+lambda_best
+```
+
+
+```{r}
+lasso_model <- glmnet(x, y_train, alpha = 1, lambda = lambda_best, standardize = TRUE)
+
+predictions_train <- predict(lasso_model, s = lambda_best, newx = x)
+eval_results(y_train, predictions_train, train)
+
+predictions_test <- predict(lasso_model, s = lambda_best, newx = x_test)
+eval_results(y_test, predictions_test, test)
+```
+
+
+## Mix of ridge and lasso (elasticnet)
+
+```{r}
+# Set training control
+train_cont <- trainControl(method = "repeatedcv",
+                              number = 10,
+                              repeats = 5,
+                              search = "random",
+                              verboseIter = TRUE)
+
+# Train the model
+elastic_reg <- train(quality ~ .,
+                           data = train,
+                           method = "glmnet",
+                           preProcess = c("center", "scale"),
+                           tuneLength = 10,
+                           trControl = train_cont)
+
+
+# Best tuning parameter
+elastic_reg$bestTune
+```
+
+
+## Metrics for elasticnet
+
+```{r}
+# Make predictions on training set
+predictions_train <- predict(elastic_reg, x)
+eval_results(y_train, predictions_train, train) 
+
+# Make predictions on test set
+predictions_test <- predict(elastic_reg, x_test)
+eval_results(y_test, predictions_test, test)
+
+```
+
+
+```{r}
+colnames(df)
+
+ggplot(data = df, mapping = aes(x = total.sulfur.dioxide, y = quality)) + 
+  geom_point()
+```
+
+```{r}
+
+ggplot(data = df, mapping = aes(x = residual.sugar, y = quality)) + 
+  geom_point()
+```
+
+There is really no relationship. This is probably an exercise in clusterting or machine learning, but linear regression is insufficient. 
+
+```{r}
+ggplot(data = df, mapping = aes(x = alcohol, y = quality)) + 
+  geom_point() +
+  geom_smooth()
 ```
 
