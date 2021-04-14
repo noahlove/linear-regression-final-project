@@ -397,3 +397,15 @@ ggplot(data = df, mapping = aes(x = alcohol, y = quality)) +
   geom_smooth()
 ```
 
+```{r}
+range01 <- function(x){(x-min(x))/(max(x)-min(x))}
+
+df$quality_scaled <- range01(df$quality)
+
+summary(df$quality_scaled)
+
+mylogit <- glm(quality_scaled ~ . - quality, data = df, family = "binomial")
+
+summary(mylogit)
+```
+
